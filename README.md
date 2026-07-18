@@ -68,8 +68,8 @@ IDE 打开 `main.py`，点工具栏【Save open script to CanMV board (as main.p
 
 - [x] 1. 建仓（目录 + git + README）
 - [x] 2. 骨架：共享人脸检测 + JSON 输出链路（已真机验证：JSON 按 250ms 节流输出、LCD 人脸框正常、无人脸时 `present:false`，全链路约 30fps）
-- [ ] 3. 功能 d：人脸远近判断
+- [x] 3. 功能 d：人脸远近判断（已真机验证：near/mid/far 迟滞切换 + 靠近/远离趋势，协议见 `docs/protocol.md`）
 - [ ] 4. 功能 a：人脸朝向识别
 - [ ] 5. 功能 c：手势识别
 - [ ] 6. 功能 b：表情分类（含真机阈值标定）
-- [ ] 7. 整合调优 + 协议文档
+- [ ] 7. 整合调优 + 协议文档补全

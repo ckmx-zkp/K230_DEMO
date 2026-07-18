@@ -34,5 +34,6 @@ PROX_NEAR_ENTER = 0.45       # ratio ≥ 此值进入 near / enter "near"
 PROX_NEAR_EXIT = 0.40        # ratio < 此值退出 near（迟滞）/ exit "near" (hysteresis)
 PROX_FAR_ENTER = 0.25        # ratio ≤ 此值进入 far / enter "far"
 PROX_FAR_EXIT = 0.30         # ratio > 此值退出 far（迟滞）/ exit "far" (hysteresis)
-PROX_TREND_MS = 1000         # 趋势参考间隔（毫秒）/ Trend reference interval (ms)
+PROX_TREND_WINDOW_MS = 2000  # 趋势窗口长度（毫秒），对半分成前后两段比较 / Trend window (ms)
+PROX_TREND_MIN_SPAN_MS = 800 # 数据跨度不足此不判趋势 / Min data span before judging trend
 PROX_TREND_CHANGE = 0.10     # 趋势判定相对变化率 / Relative change to trigger trend
