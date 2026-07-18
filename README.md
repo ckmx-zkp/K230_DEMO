@@ -67,7 +67,7 @@ IDE 打开 `main.py`，点工具栏【Save open script to CanMV board (as main.p
 ## 开发路线图
 
 - [x] 1. 建仓（目录 + git + README）
-- [ ] 2. 骨架：共享人脸检测 + JSON 输出链路
+- [x] 2. 骨架：共享人脸检测 + JSON 输出链路（已真机验证：JSON 按 250ms 节流输出、LCD 人脸框正常、无人脸时 `present:false`，全链路约 30fps）
 - [ ] 3. 功能 d：人脸远近判断
 - [ ] 4. 功能 a：人脸朝向识别
 - [ ] 5. 功能 c：手势识别
