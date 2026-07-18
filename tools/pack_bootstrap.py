@@ -23,6 +23,7 @@ FILES = [
     "output.py",
     "modules/__init__.py",
     "modules/face_det.py",
+    "modules/proximity.py",
 ]
 
 BOOTSTRAP_TEMPLATE = '''# MyVisionHub 引导安装脚本（由 tools/pack_bootstrap.py 自动生成，请勿手动编辑）

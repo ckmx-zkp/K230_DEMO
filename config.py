@@ -27,3 +27,12 @@ ANCHOR_LEN = 4200
 DET_DIM = 4
 CONFIDENCE_THRESHOLD = 0.5
 NMS_THRESHOLD = 0.2
+
+# ---- 人脸远近判断 / Proximity（ratio = 人脸框高 / 帧高）----
+PROX_WINDOW = 5              # 滑动平均窗口（帧数）/ Moving-average window in frames
+PROX_NEAR_ENTER = 0.45       # ratio ≥ 此值进入 near / enter "near"
+PROX_NEAR_EXIT = 0.40        # ratio < 此值退出 near（迟滞）/ exit "near" (hysteresis)
+PROX_FAR_ENTER = 0.25        # ratio ≤ 此值进入 far / enter "far"
+PROX_FAR_EXIT = 0.30         # ratio > 此值退出 far（迟滞）/ exit "far" (hysteresis)
+PROX_TREND_MS = 1000         # 趋势参考间隔（毫秒）/ Trend reference interval (ms)
+PROX_TREND_CHANGE = 0.10     # 趋势判定相对变化率 / Relative change to trigger trend

@@ -20,6 +20,7 @@ import ulab.numpy as np
 import config
 from output import JsonOutput
 from modules.face_det import FaceDetApp
+from modules.proximity import Proximity
 from libs.PipeLine import PipeLine, ScopedTiming
 
 
@@ -97,7 +98,7 @@ def load_anchors():
     return anchors.reshape((config.ANCHOR_LEN, config.DET_DIM))
 
 
-def build_snapshot(frame_id, count, main_face):
+def build_snapshot(frame_id, count, main_face, prox):
     """组装一帧的输出快照 / Build the output snapshot for one frame."""
     return {
         "type": "vision",
@@ -109,12 +110,13 @@ def build_snapshot(frame_id, count, main_face):
             "count": count,
             "box": face_box_json(main_face),
         },
+        "proximity": prox,
     }
 
 
-def draw_osd(pl, main_face):
-    """OSD 绘制主目标人脸框（display 与 sensor 分辨率不同则按比例换算）
-    Draw main face box on OSD (scaled if display/sensor resolutions differ)."""
+def draw_osd(pl, main_face, prox):
+    """OSD 绘制主目标人脸框与远近状态（display 与 sensor 分辨率不同则按比例换算）
+    Draw main face box and proximity status on OSD (scaled if resolutions differ)."""
     pl.osd_img.clear()
     if main_face is None:
         return
@@ -125,6 +127,9 @@ def draw_osd(pl, main_face):
     w = int(float(main_face[2]) * sx)
     h = int(float(main_face[3]) * sy)
     pl.osd_img.draw_rectangle(x, y, w, h, color=(255, 0, 255, 0), thickness=2)
+    if prox is not None:
+        text = "%s %s %.2f" % (prox["state"], prox["trend"], prox["ratio"])
+        pl.osd_img.draw_string_advanced(x, max(0, y - 40), 32, text, color=(255, 0, 255, 0))
 
 
 def main():
@@ -149,6 +154,7 @@ def main():
         face_det.config_preprocess()
 
         out = JsonOutput()
+        prox = Proximity()
         frame_id = 0
         last_output = 0
         print("MyVisionHub skeleton started")
@@ -161,16 +167,19 @@ def main():
                 count = det_count(det_boxes)
                 main_face = pick_main_face(det_boxes, count)
 
+                now = ticks_ms()
+                # 人脸远近判断（纯几何，每帧）/ Proximity (geometry only, every frame)
+                prox_res = prox.update(main_face, config.RGB888P_SIZE[1], now)
+
                 if not config.HEADLESS:
-                    draw_osd(pl, main_face)              # OSD 画框 / Draw OSD box
+                    draw_osd(pl, main_face, prox_res)    # OSD 画框与远近状态 / Draw box + proximity
                     try:
                         pl.show_image()                  # 送显（拆屏异常时静默降级）
                     except Exception:
                         pass
 
-                now = ticks_ms()
                 if ticks_diff(now, last_output) >= config.OUTPUT_INTERVAL_MS:
-                    out.send(build_snapshot(frame_id, count, main_face))
+                    out.send(build_snapshot(frame_id, count, main_face, prox_res))
                     last_output = now
 
                 gc.collect()
