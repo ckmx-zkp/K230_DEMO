@@ -37,3 +37,10 @@ PROX_FAR_EXIT = 0.30         # ratio > 此值退出 far（迟滞）/ exit "far" 
 PROX_TREND_WINDOW_MS = 2000  # 趋势窗口长度（毫秒），对半分成前后两段比较 / Trend window (ms)
 PROX_TREND_MIN_SPAN_MS = 800 # 数据跨度不足此不判趋势 / Min data span before judging trend
 PROX_TREND_CHANGE = 0.10     # 趋势判定相对变化率 / Relative change to trigger trend
+
+# ---- 人脸朝向 / Face pose ----
+FACE_POSE_KMODEL = "/sdcard/kmodel/face_pose.kmodel"
+FACE_POSE_INPUT_SIZE = [120, 120]
+POSE_RUN_EVERY = 2           # 每 N 帧跑一次姿态估计（帧调度）/ Run pose every N frames
+POSE_DIR_ENTER = 20.0        # 偏离中心的方向进入阈值（度）/ Enter-threshold leaving center (deg)
+POSE_DIR_EXIT = 15.0         # 回到中心的方向退出阈值（度）/ Exit-threshold back to center (deg)

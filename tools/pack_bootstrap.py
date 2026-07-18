@@ -23,6 +23,7 @@ FILES = [
     "output.py",
     "modules/__init__.py",
     "modules/face_det.py",
+    "modules/face_pose.py",
     "modules/proximity.py",
 ]
 

@@ -40,11 +40,23 @@
 | `ratio` | float | 人脸框高 / 帧高（0~1），5 帧滑动平均，远近的度量值 |
 | `change` | float | 趋势窗口内的相对变化量（正=变大/靠近，负=远离），趋势的量化依据 |
 
+## `pose` —— 人脸朝向（已实现）
+
+无人脸时整个字段为 `null`；有人脸时：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `dir` | string | `"center"` / `"up"` / `"down"` / `"left"` / `"right"`，由欧拉角经双阈值迟滞分类：偏出中心需 \|角度\|≥20°（`POSE_DIR_ENTER`），回到中心需 <15°（`POSE_DIR_EXIT`） |
+| `pitch` | float | 俯仰角（度），抬头为负、低头为正 |
+| `yaw` | float | 偏航角（度），左转/右转符号以真机校准为准（`face_pose.py` 注释有约定） |
+| `roll` | float | 翻滚角（度） |
+
+说明：姿态模型每 `POSE_RUN_EVERY`(2) 帧推理一次，输出帧间保持；人脸丢失立即清 `null`。
+
 ## 规划中字段（未实现，占位说明）
 
 | 字段 | 来源模块 | 内容 |
 |---|---|---|
-| `pose` | face_pose.kmodel | 人脸朝向：`dir`(up/down/left/right/center) + `pitch`/`yaw`/`roll` 欧拉角 |
 | `expression` | face_landmark.kmodel | 夸张表情分类：`label`(happy/angry/sad/surprise/neutral) |
 | `gesture` | hand_det + handkp_det | 手势：`label`(fist/five/gun/yeah/love/ok/pinch) + `box` |
 

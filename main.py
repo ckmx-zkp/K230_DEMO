@@ -20,6 +20,7 @@ import ulab.numpy as np
 import config
 from output import JsonOutput
 from modules.face_det import FaceDetApp
+from modules.face_pose import FacePoseApp, PoseDirection
 from modules.proximity import Proximity
 from libs.PipeLine import PipeLine, ScopedTiming
 
@@ -98,7 +99,7 @@ def load_anchors():
     return anchors.reshape((config.ANCHOR_LEN, config.DET_DIM))
 
 
-def build_snapshot(frame_id, count, main_face, prox):
+def build_snapshot(frame_id, count, main_face, prox, pose):
     """组装一帧的输出快照 / Build the output snapshot for one frame."""
     return {
         "type": "vision",
@@ -111,12 +112,13 @@ def build_snapshot(frame_id, count, main_face, prox):
             "box": face_box_json(main_face),
         },
         "proximity": prox,
+        "pose": pose,
     }
 
 
-def draw_osd(pl, main_face, prox):
-    """OSD 绘制主目标人脸框与远近状态（display 与 sensor 分辨率不同则按比例换算）
-    Draw main face box and proximity status on OSD (scaled if resolutions differ)."""
+def draw_osd(pl, main_face, prox, pose):
+    """OSD 绘制主目标人脸框与各状态（display 与 sensor 分辨率不同则按比例换算）
+    Draw main face box and status texts on OSD (scaled if resolutions differ)."""
     pl.osd_img.clear()
     if main_face is None:
         return
@@ -130,11 +132,15 @@ def draw_osd(pl, main_face, prox):
     if prox is not None:
         text = "%s %s %.2f" % (prox["state"], prox["trend"], prox["ratio"])
         pl.osd_img.draw_string_advanced(x, max(0, y - 40), 32, text, color=(255, 0, 255, 0))
+    if pose is not None:
+        text = "%s y%.0f p%.0f" % (pose["dir"], pose["yaw"], pose["pitch"])
+        pl.osd_img.draw_string_advanced(x, max(0, y - 80), 32, text, color=(255, 255, 0, 0))
 
 
 def main():
     pl = None
     face_det = None
+    face_pose = None
     try:
         # 创建图像处理管线 / Create image processing pipeline
         pl = PipeLine(rgb888p_size=config.RGB888P_SIZE,
@@ -153,8 +159,17 @@ def main():
                               debug_mode=0)
         face_det.config_preprocess()
 
+        # 加载人脸姿态模型（复用共享检测框，不再单独检测）/ Face pose model (uses shared box)
+        face_pose = FacePoseApp(config.FACE_POSE_KMODEL,
+                                model_input_size=config.FACE_POSE_INPUT_SIZE,
+                                rgb888p_size=config.RGB888P_SIZE,
+                                display_size=config.DISPLAY_SIZE,
+                                debug_mode=0)
+
         out = JsonOutput()
         prox = Proximity()
+        pose_dir = PoseDirection()
+        last_pose = None      # 最近一次姿态结果，帧间保持输出 / Latest pose result
         frame_id = 0
         last_output = 0
         print("MyVisionHub skeleton started")
@@ -171,15 +186,30 @@ def main():
                 # 人脸远近判断（纯几何，每帧）/ Proximity (geometry only, every frame)
                 prox_res = prox.update(main_face, config.RGB888P_SIZE[1], now)
 
+                # 人脸朝向：按帧调度，用共享主目标框 / Face pose: scheduled, shared main box
+                if main_face is None:
+                    last_pose = None
+                    pose_dir.reset()
+                elif frame_id % config.POSE_RUN_EVERY == 0:
+                    face_pose.config_preprocess(main_face)
+                    R, eular = face_pose.run(img)
+                    pitch, yaw, roll = eular[0], eular[1], eular[2]
+                    last_pose = {
+                        "dir": pose_dir.update(pitch, yaw),
+                        "pitch": round(float(pitch), 1),
+                        "yaw": round(float(yaw), 1),
+                        "roll": round(float(roll), 1),
+                    }
+
                 if not config.HEADLESS:
-                    draw_osd(pl, main_face, prox_res)    # OSD 画框与远近状态 / Draw box + proximity
+                    draw_osd(pl, main_face, prox_res, last_pose)  # OSD 画框与状态 / Draw box + status
                     try:
                         pl.show_image()                  # 送显（拆屏异常时静默降级）
                     except Exception:
                         pass
 
                 if ticks_diff(now, last_output) >= config.OUTPUT_INTERVAL_MS:
-                    out.send(build_snapshot(frame_id, count, main_face, prox_res))
+                    out.send(build_snapshot(frame_id, count, main_face, prox_res, last_pose))
                     last_output = now
 
                 gc.collect()
@@ -191,6 +221,11 @@ def main():
         if face_det is not None:
             try:
                 face_det.deinit()
+            except Exception:
+                pass
+        if face_pose is not None:
+            try:
+                face_pose.deinit()
             except Exception:
                 pass
         if pl is not None:
