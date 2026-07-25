@@ -44,3 +44,15 @@ FACE_POSE_INPUT_SIZE = [120, 120]
 POSE_RUN_EVERY = 2           # 每 N 帧跑一次姿态估计（帧调度）/ Run pose every N frames
 POSE_DIR_ENTER = 20.0        # 偏离中心的方向进入阈值（度）/ Enter-threshold leaving center (deg)
 POSE_DIR_EXIT = 15.0         # 回到中心的方向退出阈值（度）/ Exit-threshold back to center (deg)
+
+# ---- 手势识别 / Hand gesture ----
+HAND_DET_KMODEL = "/sdcard/kmodel/hand_det.kmodel"
+HAND_KP_KMODEL = "/sdcard/kmodel/handkp_det.kmodel"
+HAND_DET_INPUT_SIZE = [512, 512]
+HAND_KP_INPUT_SIZE = [256, 256]
+HAND_CONF_THRESHOLD = 0.2
+HAND_NMS_THRESHOLD = 0.5
+HAND_LABELS = ["hand"]
+HAND_ANCHORS = [26, 27, 53, 52, 75, 71, 80, 99, 106, 82, 99, 134, 140, 113, 161, 172, 245, 276]
+GESTURE_RUN_EVERY = 4        # 每 N 帧跑一次手势（与姿态错开）/ Run gesture every N frames (offset from pose)
+GESTURE_CONFIRM_FRAMES = 3   # 连续 N 次识别一致才切换输出 / N consecutive runs to confirm a switch

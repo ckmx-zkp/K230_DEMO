@@ -21,6 +21,7 @@ import config
 from output import JsonOutput
 from modules.face_det import FaceDetApp
 from modules.face_pose import FacePoseApp, PoseDirection
+from modules.gesture import GestureModule
 from modules.proximity import Proximity
 from libs.PipeLine import PipeLine, ScopedTiming
 
@@ -99,7 +100,7 @@ def load_anchors():
     return anchors.reshape((config.ANCHOR_LEN, config.DET_DIM))
 
 
-def build_snapshot(frame_id, count, main_face, prox, pose):
+def build_snapshot(frame_id, count, main_face, prox, pose, gesture):
     """组装一帧的输出快照 / Build the output snapshot for one frame."""
     return {
         "type": "vision",
@@ -113,34 +114,43 @@ def build_snapshot(frame_id, count, main_face, prox, pose):
         },
         "proximity": prox,
         "pose": pose,
+        "gesture": gesture,
     }
 
 
-def draw_osd(pl, main_face, prox, pose):
-    """OSD 绘制主目标人脸框与各状态（display 与 sensor 分辨率不同则按比例换算）
-    Draw main face box and status texts on OSD (scaled if resolutions differ)."""
+def draw_osd(pl, main_face, prox, pose, gesture):
+    """OSD 绘制检测框与各状态（display 与 sensor 分辨率不同则按比例换算）
+    Draw boxes and status texts on OSD (scaled if resolutions differ)."""
     pl.osd_img.clear()
-    if main_face is None:
-        return
     sx = pl.display_size[0] / pl.rgb888p_size[0]
     sy = pl.display_size[1] / pl.rgb888p_size[1]
-    x = int(float(main_face[0]) * sx)
-    y = int(float(main_face[1]) * sy)
-    w = int(float(main_face[2]) * sx)
-    h = int(float(main_face[3]) * sy)
-    pl.osd_img.draw_rectangle(x, y, w, h, color=(255, 0, 255, 0), thickness=2)
-    if prox is not None:
-        text = "%s %s %.2f" % (prox["state"], prox["trend"], prox["ratio"])
-        pl.osd_img.draw_string_advanced(x, max(0, y - 40), 32, text, color=(255, 0, 255, 0))
-    if pose is not None:
-        text = "%s y%.0f p%.0f" % (pose["dir"], pose["yaw"], pose["pitch"])
-        pl.osd_img.draw_string_advanced(x, max(0, y - 80), 32, text, color=(255, 255, 0, 0))
+    if main_face is not None:
+        x = int(float(main_face[0]) * sx)
+        y = int(float(main_face[1]) * sy)
+        w = int(float(main_face[2]) * sx)
+        h = int(float(main_face[3]) * sy)
+        pl.osd_img.draw_rectangle(x, y, w, h, color=(255, 0, 255, 0), thickness=2)
+        if prox is not None:
+            text = "%s %s %.2f" % (prox["state"], prox["trend"], prox["ratio"])
+            pl.osd_img.draw_string_advanced(x, max(0, y - 40), 32, text, color=(255, 0, 255, 0))
+        if pose is not None:
+            text = "%s y%.0f p%.0f" % (pose["dir"], pose["yaw"], pose["pitch"])
+            pl.osd_img.draw_string_advanced(x, max(0, y - 80), 32, text, color=(255, 255, 0, 0))
+    if gesture is not None and gesture.get("box") is not None:
+        b = gesture["box"]
+        gx = int(b["x"] * sx)
+        gy = int(b["y"] * sy)
+        gw = int(b["w"] * sx)
+        gh = int(b["h"] * sy)
+        pl.osd_img.draw_rectangle(gx, gy, gw, gh, color=(255, 0, 0, 255), thickness=2)
+        pl.osd_img.draw_string_advanced(gx, max(0, gy - 40), 32, gesture["label"], color=(255, 0, 0, 255))
 
 
 def main():
     pl = None
     face_det = None
     face_pose = None
+    gesture_mod = None
     try:
         # 创建图像处理管线 / Create image processing pipeline
         pl = PipeLine(rgb888p_size=config.RGB888P_SIZE,
@@ -166,10 +176,16 @@ def main():
                                 display_size=config.DISPLAY_SIZE,
                                 debug_mode=0)
 
+        # 加载手势识别模块（hand_det + handkp，自带确认防抖）/ Gesture module
+        gesture_mod = GestureModule(rgb888p_size=config.RGB888P_SIZE,
+                                    display_size=config.DISPLAY_SIZE,
+                                    debug_mode=0)
+
         out = JsonOutput()
         prox = Proximity()
         pose_dir = PoseDirection()
         last_pose = None      # 最近一次姿态结果，帧间保持输出 / Latest pose result
+        last_gesture = None   # 最近一次手势确认结果，帧间保持输出 / Latest confirmed gesture
         frame_id = 0
         last_output = 0
         print("MyVisionHub skeleton started")
@@ -201,15 +217,19 @@ def main():
                         "roll": round(float(roll), 1),
                     }
 
+                # 手势识别：按帧调度（与姿态错开，摊薄 KPU 负载）/ Gesture: scheduled (offset)
+                if frame_id % config.GESTURE_RUN_EVERY == 1:
+                    last_gesture = gesture_mod.run(img)
+
                 if not config.HEADLESS:
-                    draw_osd(pl, main_face, prox_res, last_pose)  # OSD 画框与状态 / Draw box + status
+                    draw_osd(pl, main_face, prox_res, last_pose, last_gesture)  # OSD / Draw boxes + status
                     try:
                         pl.show_image()                  # 送显（拆屏异常时静默降级）
                     except Exception:
                         pass
 
                 if ticks_diff(now, last_output) >= config.OUTPUT_INTERVAL_MS:
-                    out.send(build_snapshot(frame_id, count, main_face, prox_res, last_pose))
+                    out.send(build_snapshot(frame_id, count, main_face, prox_res, last_pose, last_gesture))
                     last_output = now
 
                 gc.collect()
@@ -226,6 +246,11 @@ def main():
         if face_pose is not None:
             try:
                 face_pose.deinit()
+            except Exception:
+                pass
+        if gesture_mod is not None:
+            try:
+                gesture_mod.deinit()
             except Exception:
                 pass
         if pl is not None:

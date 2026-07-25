@@ -24,6 +24,7 @@ FILES = [
     "modules/__init__.py",
     "modules/face_det.py",
     "modules/face_pose.py",
+    "modules/gesture.py",
     "modules/proximity.py",
 ]
 

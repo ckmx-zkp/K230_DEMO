@@ -53,12 +53,22 @@
 
 说明：姿态模型每 `POSE_RUN_EVERY`(2) 帧推理一次，输出帧间保持；人脸丢失立即清 `null`。
 
+## `gesture` —— 手势识别（已实现）
+
+未确认到手势时整个字段为 `null`；确认后：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `label` | string | 手势类别：`fist`(拳头) / `five`(五指) / `gun`(手枪) / `love`(爱心) / `one` / `six` / `three` / `thumbUp`(竖拇指) / `yeah`(剪刀手) |
+| `box` | object | 手掌框 `x` `y` `w` `h`（sensor 640x480 坐标系） |
+
+说明：hand_det(512x512) + handkp_det(256x256) 关键点几何分类；每 `GESTURE_RUN_EVERY`(4) 帧推理一次（与姿态错开）；同一手势连续 `GESTURE_CONFIRM_FRAMES`(3) 次出现才切换输出，无手/未识别持续 N 次后回 `null`，帧间结果保持。
+
 ## 规划中字段（未实现，占位说明）
 
 | 字段 | 来源模块 | 内容 |
 |---|---|---|
 | `expression` | face_landmark.kmodel | 夸张表情分类：`label`(happy/angry/sad/surprise/neutral) |
-| `gesture` | hand_det + handkp_det | 手势：`label`(fist/five/gun/yeah/love/ok/pinch) + `box` |
 
 无人脸/无手时对应字段为 `null`；未实现的字段**不出现在输出中**（不是 `null`，是直接省略）。
 
