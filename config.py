@@ -56,3 +56,5 @@ HAND_LABELS = ["hand"]
 HAND_ANCHORS = [26, 27, 53, 52, 75, 71, 80, 99, 106, 82, 99, 134, 140, 113, 161, 172, 245, 276]
 GESTURE_RUN_EVERY = 4        # 每 N 帧跑一次手势（与姿态错开）/ Run gesture every N frames (offset from pose)
 GESTURE_CONFIRM_FRAMES = 3   # 连续 N 次识别一致才切换输出 / N consecutive runs to confirm a switch
+GESTURE_DEBUG = True         # True = 打印每次识别的原始标签与五指角度（调阈值用，约7行/秒）
+                             # True = print raw label + finger angles each run (for tuning)

@@ -80,6 +80,7 @@ class HandKPClassApp(AIBase):
         self.display_size = [ALIGN_UP(display_size[0], 16), display_size[1]]
         self.crop_params = []
         self.debug_mode = debug_mode
+        self.last_angles = None      # 最近一次五指关节角度（调试用）/ Last finger angles (debug)
         self.ai2d = Ai2d(debug_mode)
         self.ai2d.set_ai2d_dtype(nn.ai2d_format.NCHW_FMT, nn.ai2d_format.NCHW_FMT, np.uint8, np.uint8)
 
@@ -139,6 +140,7 @@ class HandKPClassApp(AIBase):
             for i in range(5):
                 angle = self.hk_vector_2d_angle([(results[0] - results[i * 8 + 4]), (results[1] - results[i * 8 + 5])], [(results[i * 8 + 6] - results[i * 8 + 8]), (results[i * 8 + 7] - results[i * 8 + 9])])
                 angle_list.append(angle)
+            self.last_angles = angle_list      # 留存供调试输出 / Keep for debug printing
             thr_angle, thr_angle_thumb, thr_angle_s, gesture_str = 65., 53., 49., None
             if 65535. not in angle_list:
                 # 拳头 fist
@@ -237,6 +239,11 @@ class GestureModule:
                 continue
             self.hand_kp.config_preprocess(det_box)
             results_show, gesture = self.hand_kp.run(input_np)
+            if config.GESTURE_DEBUG:
+                angles = self.hand_kp.last_angles
+                if angles is not None:
+                    print("gesture raw=%s angles=[%s]" % (str(gesture),
+                          ",".join([str(int(a)) for a in angles])))
             if gesture is not None:
                 raw_label = gesture
                 raw_box = det_box
