@@ -7,7 +7,7 @@
 - 通道：K230 物理 UART 引脚（`YbUart`），与 USB-CDC 调试通道无关
 - 参数：**115200 8N1**（`config.py` 中 `UART_BAUDRATE` 可改，如 921600）
 - 帧格式：**每行一个 JSON 对象**，以 `\n` 结尾（NDJSON / JSON Lines）
-- 输出频率：默认 250ms 一帧（`OUTPUT_INTERVAL_MS`），无事件驱动
+- 输出频率：默认 100ms 一帧（10Hz，`OUTPUT_INTERVAL_MS`，可远程配置），无事件驱动
 - 调试镜像：`PRINT_MIRROR=True` 时每行同时打印到 CanMV IDE 终端（USB-CDC），方便免 USB-TTL 观察
 
 ## 顶层信封
@@ -78,6 +78,26 @@
 {"type":"vision","version":1,"frame_id":498,"ts_ms":39923,"face":{"present":true,"count":1,"box":{"x":345,"y":142,"w":96,"h":125}},"proximity":{"state":"mid","trend":"approaching","ratio":0.26,"change":0.14}}
 {"type":"vision","version":1,"frame_id":506,"ts_ms":40207,"face":{"present":false,"count":0,"box":null},"proximity":null}
 ```
+
+## 命令通道（ESP32 → K230，已实现）
+
+同一条 UART 双向复用：ESP32 每行发一个 JSON 命令，K230 主循环非阻塞轮询处理，并回一行 `{"type":"ack",...}`。与 `type:"vision"` 的输出帧用 `type` 字段区分。
+
+| 命令 | 格式 | 说明 |
+|---|---|---|
+| 设置阈值 | `{"cmd":"set","key":"POSE_DIR_ENTER","value":25}` | 立即生效（运行时）；只允许白名单键，非法键 `ok:false` |
+| 查询阈值 | `{"cmd":"get","key":"POSE_DIR_ENTER"}` | 回当前值 |
+| 列出全部 | `{"cmd":"list"}` | 回所有白名单键及当前值 |
+| 持久化 | `{"cmd":"save"}` | 把白名单键当前值写入 `/sdcard/app/MyVisionHub/config_override.json`，重启后自动加载 |
+
+ack 格式：
+
+```json
+{"type":"ack","cmd":"set","key":"POSE_DIR_ENTER","ok":true,"value":25}
+{"type":"ack","cmd":"list","ok":true,"items":{"POSE_DIR_ENTER":25,"PROX_NEAR_ENTER":0.45}}
+```
+
+白名单键（`config.py` 中 `CONFIGURABLE_KEYS`）：`OUTPUT_INTERVAL_MS`、`PROX_*`（远近/趋势全部阈值）、`POSE_RUN_EVERY`、`POSE_DIR_ENTER`、`POSE_DIR_EXIT`、`GESTURE_RUN_EVERY`、`GESTURE_CONFIRM_FRAMES`、`GESTURE_DEBUG`。模型路径等关键配置不开放远程修改。
 
 ## 接收端解析要点
 

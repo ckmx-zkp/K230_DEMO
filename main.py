@@ -118,6 +118,58 @@ def build_snapshot(frame_id, count, main_face, prox, pose, gesture):
     }
 
 
+def save_overrides():
+    """把白名单配置项的当前值持久化到 TF 卡 / Persist whitelisted config values."""
+    try:
+        import ujson
+        data = {}
+        for k in config.CONFIGURABLE_KEYS:
+            data[k] = getattr(config, k)
+        with open(config.OVERRIDE_PATH, "w") as f:
+            f.write(ujson.dumps(data))
+        return True
+    except Exception as e:
+        print("save overrides failed:", e)
+        return False
+
+
+def handle_command(cmd, out):
+    """处理 ESP32 下发的配置命令并回 ack
+    Handle config commands from ESP32 and reply with an ack.
+
+    支持 / Supported:
+      {"cmd":"set","key":"POSE_DIR_ENTER","value":25}
+      {"cmd":"get","key":"POSE_DIR_ENTER"}
+      {"cmd":"list"}
+      {"cmd":"save"}
+    """
+    if not isinstance(cmd, dict):
+        return
+    c = cmd.get("cmd")
+    if c == "set":
+        key = cmd.get("key")
+        ok = key in config.CONFIGURABLE_KEYS
+        if ok:
+            try:
+                setattr(config, key, cmd.get("value"))
+            except Exception:
+                ok = False
+        out.send({"type": "ack", "cmd": "set", "key": key, "ok": ok,
+                  "value": getattr(config, key, None) if ok else None})
+    elif c == "get":
+        key = cmd.get("key")
+        ok = key in config.CONFIGURABLE_KEYS
+        out.send({"type": "ack", "cmd": "get", "key": key, "ok": ok,
+                  "value": getattr(config, key, None) if ok else None})
+    elif c == "list":
+        items = {}
+        for k in config.CONFIGURABLE_KEYS:
+            items[k] = getattr(config, k, None)
+        out.send({"type": "ack", "cmd": "list", "ok": True, "items": items})
+    elif c == "save":
+        out.send({"type": "ack", "cmd": "save", "ok": save_overrides()})
+
+
 def draw_osd(pl, main_face, prox, pose, gesture):
     """OSD 绘制检测框与各状态（display 与 sensor 分辨率不同则按比例换算）
     Draw boxes and status texts on OSD (scaled if resolutions differ)."""
@@ -199,6 +251,12 @@ def main():
                 main_face = pick_main_face(det_boxes, count)
 
                 now = ticks_ms()
+
+                # ESP32 命令通道：非阻塞轮询 / UART command channel: non-blocking poll
+                cmd = out.read_command()
+                if cmd:
+                    handle_command(cmd, out)
+
                 # 人脸远近判断（纯几何，每帧）/ Proximity (geometry only, every frame)
                 prox_res = prox.update(main_face, config.RGB888P_SIZE[1], now)
 

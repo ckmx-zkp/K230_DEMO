@@ -18,6 +18,7 @@ class JsonOutput:
         except Exception as e:
             print("uart init failed, print-only mode:", e)
             self.uart = None
+        self.rx_buf = ""
 
     def send(self, obj):
         """发送一个 dict：序列化为单行 JSON 发出 / Send a dict as one JSON line."""
@@ -33,3 +34,38 @@ class JsonOutput:
                 print("uart send failed:", e)
         if config.PRINT_MIRROR:
             print(line)
+
+    def read_command(self):
+        """非阻塞读取一条命令（按行缓冲，整行为一个 JSON 对象）
+        Non-blocking read of one command (line-buffered, one JSON object per line)."""
+        if self.uart is None:
+            return None
+        try:
+            data = self.uart.read()
+        except Exception:
+            return None
+        if not data:
+            return None
+        if not isinstance(data, str):
+            try:
+                data = data.decode()
+            except Exception:
+                return None
+        self.rx_buf += data
+        # 缓冲限长，防异常数据撑爆内存 / Bound the buffer
+        if len(self.rx_buf) > 1024:
+            self.rx_buf = self.rx_buf[-512:]
+        nl = self.rx_buf.find("\n")
+        if nl < 0:
+            return None
+        line = self.rx_buf[:nl].strip()
+        self.rx_buf = self.rx_buf[nl + 1:]
+        if not line:
+            return None
+        try:
+            cmd = ujson.loads(line)
+            if isinstance(cmd, dict):
+                return cmd
+        except Exception:
+            pass
+        return None

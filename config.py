@@ -11,9 +11,37 @@ HEADLESS = False               # True = 跳过全部 OSD 绘制与显示（拆�
 
 # ---- 串口输出 / UART output ----
 UART_BAUDRATE = 115200         # YbUart 波特率（物理串口引脚）/ Physical UART baudrate
-OUTPUT_INTERVAL_MS = 250       # JSON 输出节流间隔 / JSON output throttle interval
+OUTPUT_INTERVAL_MS = 100       # JSON 输出节流间隔（10Hz，兼顾舵机跟随与带宽）
+                               # JSON output throttle interval (10Hz)
 PRINT_MIRROR = True            # JSON 同步 print 到 IDE 终端（调试免 USB-TTL）
                                # Also print JSON to IDE terminal (no USB-TTL needed while debugging)
+
+# ---- 运行时阈值可配（ESP32 命令通道）/ Runtime-configurable via UART commands ----
+# 白名单：只有这些键允许 ESP32 远程 set；模型路径等关键配置不开放
+# Whitelist: only these keys may be set remotely; critical paths stay closed
+CONFIGURABLE_KEYS = [
+    "OUTPUT_INTERVAL_MS",
+    "PROX_WINDOW", "PROX_NEAR_ENTER", "PROX_NEAR_EXIT", "PROX_FAR_ENTER", "PROX_FAR_EXIT",
+    "PROX_TREND_WINDOW_MS", "PROX_TREND_MIN_SPAN_MS", "PROX_TREND_CHANGE",
+    "POSE_RUN_EVERY", "POSE_DIR_ENTER", "POSE_DIR_EXIT",
+    "GESTURE_RUN_EVERY", "GESTURE_CONFIRM_FRAMES", "GESTURE_DEBUG",
+]
+OVERRIDE_PATH = "/sdcard/app/MyVisionHub/config_override.json"  # save 命令的持久化文件
+
+
+def _load_override():
+    """启动时加载 ESP32 保存过的阈值覆盖 / Apply persisted overrides at boot."""
+    try:
+        import ujson
+        with open(OVERRIDE_PATH, "r") as f:
+            data = ujson.loads(f.read())
+        g = globals()
+        for k, v in data.items():
+            if k in CONFIGURABLE_KEYS:
+                g[k] = v
+    except Exception:
+        pass
+
 
 # ---- 调试 / Debug ----
 DEBUG_TIMING = False           # True = 打印每帧耗时（会刷屏，排查性能时再开）
@@ -58,3 +86,8 @@ GESTURE_RUN_EVERY = 4        # 每 N 帧跑一次手势（与姿态错开）/ Ru
 GESTURE_CONFIRM_FRAMES = 3   # 连续 N 次识别一致才切换输出 / N consecutive runs to confirm a switch
 GESTURE_DEBUG = True         # True = 打印每次识别的原始标签与五指角度（调阈值用，约7行/秒）
                              # True = print raw label + finger angles each run (for tuning)
+
+# 所有默认值定义完毕，最后应用 ESP32 保存的阈值覆盖（必须放文件末尾，
+# 否则 override 会被下方的默认值重新覆盖）
+# Apply persisted overrides LAST, after all defaults are defined.
+_load_override()
