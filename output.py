@@ -13,8 +13,14 @@ class JsonOutput:
 
     def __init__(self):
         try:
-            from ybUtils.YbUart import YbUart
-            self.uart = YbUart(baudrate=config.UART_BAUDRATE)
+            from machine import FPIOA, UART
+            self.fpioa = FPIOA()
+            self.fpioa.set_function(config.UART_TX_PIN, FPIOA.UART2_TXD)
+            self.fpioa.set_function(config.UART_RX_PIN, FPIOA.UART2_RXD)
+            self.uart = UART(UART.UART2, baudrate=config.UART_BAUDRATE,
+                             bits=UART.EIGHTBITS, parity=UART.PARITY_NONE,
+                             stop=UART.STOPBITS_ONE)
+            print("UART2 ready: TX", config.UART_TX_PIN, "RX", config.UART_RX_PIN)
         except Exception as e:
             print("uart init failed, print-only mode:", e)
             self.uart = None
@@ -29,7 +35,7 @@ class JsonOutput:
             return
         if self.uart is not None:
             try:
-                self.uart.send(line + "\n")
+                self.uart.write((line + "\n").encode())
             except Exception as e:
                 print("uart send failed:", e)
         if config.PRINT_MIRROR:
@@ -40,12 +46,15 @@ class JsonOutput:
         Non-blocking read of one command (line-buffered, one JSON object per line)."""
         if self.uart is None:
             return None
-        try:
-            data = self.uart.read()
-        except Exception:
-            return None
+        data = None
+        if "\n" not in self.rx_buf:
+            try:
+                if self.uart.any():
+                    data = self.uart.read()
+            except Exception:
+                return None
         if not data:
-            return None
+            data = ""
         if not isinstance(data, str):
             try:
                 data = data.decode()
@@ -69,3 +78,10 @@ class JsonOutput:
         except Exception:
             pass
         return None
+
+    def close(self):
+        if self.uart is not None:
+            try:
+                self.uart.deinit()
+            except Exception:
+                pass

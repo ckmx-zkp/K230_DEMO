@@ -21,6 +21,10 @@ FILES = [
     "main.py",
     "config.py",
     "output.py",
+    "camera_pipeline.py",
+    "modules/face_target.py",
+    "modules/face_landmark.py",
+    "modules/expression.py",
     "modules/__init__.py",
     "modules/face_det.py",
     "modules/face_pose.py",
@@ -62,8 +66,12 @@ def main():
         data = ubinascii.a2b_base64(b64)
         with open(dest, "wb") as f:
             f.write(data)
-        print("written:", dest, len(data), "bytes")
+        with open(dest, "rb") as f:
+            if f.read() != data:
+                raise RuntimeError("Readback failed: " + dest)
+        print("verified:", dest, len(data), "bytes")
     print("MyVisionHub bootstrap done, files at", TARGET)
+    print("Reset board, reopen the latest main.py, then run it.")
 
 
 main()

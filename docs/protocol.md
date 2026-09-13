@@ -1,5 +1,11 @@
 # MyVisionHub 串口 JSON 协议
 
+> 2026-09-13 更新：实际使用 machine.UART2，TX=GPIO44、RX=GPIO45。新增 `tracking` 与 `expression`，原有字段保持兼容。下文“规划中 expression”是旧记录，已由本段和 `face-expression-bringup.md` 替代。
+>
+> `tracking`：null 或 `{id,cx,cy,dx,dy,clipped}`。id 是框关联会话编号，不是身份。dx/dy 按半画幅归一化，左/上为负。无目标立即 null。
+>
+> `expression`：null 或 `{label,reason?,distance?,margin?,method?}`；label 为 neutral/happy/angry/sad/surprise/unknown。method 为 landmark_calibrated（几何采样原型）；distance/margin 不是概率。reason 包含 needs_calibration、calibrating、calibration_timeout、clipped_face、face_camera、need_single_face、missing_model。结果每 6 帧更新，帧间保持；目标切换或丢失清空。全部五类标定后才分类，不确定立即 unknown。协议不承诺普适情绪识别，也未接 ESP32 控制动作。
+
 版本：v1（随功能模块逐步扩充，接收端应忽略未知字段以保证前向兼容）
 
 ## 传输层

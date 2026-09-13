@@ -6,7 +6,19 @@
 RGB888P_SIZE = [640, 480]      # sensor 给 AI 的图像分辨率 / Sensor-to-AI image resolution
 DISPLAY_SIZE = [640, 480]      # 显示分辨率 / Display resolution
 DISPLAY_MODE = "lcd"           # "lcd" 或 "hdmi"（PipeLine 仅支持这两种）/ "lcd" or "hdmi" only
-HEADLESS = False               # True = 跳过全部 OSD 绘制与显示（拆屏后独立运行用）
+SENSOR_ID = 0                 # OV5647 on PCBA FPC3 / CSI0
+IDE_PREVIEW = True            # Virtual display with detection overlay; False for standalone
+APP_CONFIG_VERSION = "2026-09-13.1"
+EXPRESSION_ENABLED = True
+FACE_LANDMARK_KMODEL = '/sdcard/kmodel/face_landmark.kmodel'
+EXPRESSION_RUN_EVERY = 6
+EXPRESSION_MAX_DISTANCE = 0.10  # 初始拒识阈值，须真机标定
+EXPRESSION_MIN_MARGIN = 0.008
+EXPRESSION_PROFILE_PATH = '/sdcard/app/MyVisionHub/expression_profiles.json'
+EXPRESSION_REQUEST_PATH = '/sdcard/app/MyVisionHub/expression_request.json'
+UART_TX_PIN = 44              # K230 TX -> ESP32 GPIO11
+UART_RX_PIN = 45              # K230 RX <- ESP32 GPIO10
+HEADLESS = True                # Sensor + MediaManager only; no Display initialization
                                # True = skip all OSD drawing & display (for headless standalone run)
 
 # ---- 串口输出 / UART output ----
